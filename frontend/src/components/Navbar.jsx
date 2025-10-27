@@ -1,102 +1,70 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Car, LogOut, User, Calendar, BookOpen, LayoutDashboard } from "lucide-react";
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext'; // Check if this path is correct
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    // 1. Call logout from context (clears user state and localStorage)
     logout();
-    navigate("/login");
+
+    // 2. Redirect to the HOME page (the search page)
+    navigate('/'); // <--- Ensure this navigates to '/'
   };
 
   return (
-    <nav className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <Link to="/" className="flex items-center space-x-2" data-testid="logo-link">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-2 rounded-lg">
-              <Car className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-              PES Carpool
-            </span>
+    <nav className="bg-white shadow-md w-full">
+      <div className="container mx-auto px-6 py-3 flex justify-between items-center">
+
+        {/* Logo / Home Link */}
+        <Link to="/" className="text-xl font-bold text-blue-600">
+          PES Carpool
+        </Link>
+
+        {/* Navigation Links */}
+        <div className="flex items-center space-x-4">
+          <Link to="/" className="text-gray-600 hover:text-blue-600">
+            Find Ride
           </Link>
 
-          <div className="flex items-center space-x-4">
-            {user ? (
-              <>
-                <Link to="/" data-testid="home-link">
-                  <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                    <BookOpen className="w-4 h-4" />
-                    <span className="hidden sm:inline">Search Rides</span>
-                  </Button>
+          {/* --- Conditional Links --- */}
+          {user ? (
+            // --- User is LOGGED IN ---
+            <>
+              {user.role && user.role.toLowerCase() === 'driver' && (
+                <Link to="/post-ride" className="text-gray-600 hover:text-blue-600">
+                  Post a Ride
                 </Link>
-                
-                {user.is_driver && (
-                  <>
-                    <Link to="/post-ride" data-testid="post-ride-link">
-                      <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                        <Car className="w-4 h-4" />
-                        <span className="hidden sm:inline">Post Ride</span>
-                      </Button>
-                    </Link>
-                    <Link to="/my-rides" data-testid="my-rides-link">
-                      <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                        <Calendar className="w-4 h-4" />
-                        <span className="hidden sm:inline">My Rides</span>
-                      </Button>
-                    </Link>
-                  </>
-                )}
-                
-                {!user.is_driver && (
-                  <Link to="/bookings" data-testid="bookings-link">
-                    <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span className="hidden sm:inline">My Bookings</span>
-                    </Button>
-                  </Link>
-                )}
-                
-                {user.is_admin && (
-                  <Link to="/admin" data-testid="admin-link">
-                    <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                      <LayoutDashboard className="w-4 h-4" />
-                      <span className="hidden sm:inline">Admin</span>
-                    </Button>
-                  </Link>
-                )}
-
-                <div className="flex items-center space-x-2 pl-4 border-l border-gray-200">
-                  <div className="hidden sm:block text-right">
-                    <p className="text-sm font-medium text-gray-900" data-testid="user-name">{user.name}</p>
-                    <p className="text-xs text-gray-500">{user.is_driver ? "Driver" : "Passenger"}</p>
-                  </div>
-                  <Button
-                    onClick={handleLogout}
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    data-testid="logout-btn"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <Link to="/login" data-testid="login-link">
-                  <Button variant="ghost" size="sm">Login</Button>
-                </Link>
-                <Link to="/register" data-testid="register-link">
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700">Sign Up</Button>
-                </Link>
-              </>
-            )}
-          </div>
+              )}
+              <Link to="/my-bookings" className="text-gray-600 hover:text-blue-600">
+                My Bookings
+              </Link>
+              <span className="text-gray-800 font-medium">
+                Hi, {user.name ? user.name.split(' ')[0] : 'User'}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            // --- User is LOGGED OUT ---
+            <>
+              <Link to="/login" className="text-gray-600 hover:text-blue-600">
+                Login
+              </Link>
+              <Link
+                to="/register"
+                className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Register
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </nav>

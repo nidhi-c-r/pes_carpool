@@ -1,203 +1,197 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
-import Navbar from "@/components/Navbar";
-import RideCard from "@/components/RideCard";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import api from "@/api/api";
-import { toast } from "sonner";
-import { Search, MapPin, Calendar, Users, Car } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // Make sure useNavigate is imported
+import api from '../api/api'; // Make sure this path is correct
+// Using react-icons
+import { FaMapMarkerAlt, FaFlagCheckered, FaCalendarAlt, FaUsers, FaSearch, FaCarAlt } from 'react-icons/fa';
+import { FiArrowRight } from "react-icons/fi";
 
+/**
+ * RideCard component - Dark Mode Style
+ */
+const RideCard = ({ ride }) => {
+  const navigate = useNavigate(); // Get the navigate function
+  const formatDateTime = (dateTimeString) => {
+    const date = new Date(dateTimeString);
+    return date.toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+  };
+
+  return (
+    // Dark background, subtle border, glow effect on hover
+    <div className="bg-gray-800 shadow-lg hover:shadow-cyan-500/30 transition-shadow duration-300 rounded-lg overflow-hidden mb-5 border border-gray-700 max-w-3xl mx-auto group">
+      <div className="p-4 border-b border-gray-700">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-lg font-semibold text-gray-100 group-hover:text-cyan-400 transition-colors duration-300 flex items-center gap-2">
+             <FaCarAlt className="text-cyan-500" />
+            {ride.origin} → {ride.destination}
+          </h3>
+          <span className="text-xl font-bold text-cyan-400">${ride.price.toFixed(2)}</span>
+        </div>
+        <p className="text-xs text-gray-400">
+          {formatDateTime(ride.date_time)}
+        </p>
+      </div>
+      <div className="p-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-300">
+        <p><span className="font-medium text-gray-500">Driver:</span> {ride.driver.name}</p>
+        <p><span className="font-medium text-gray-500">Vehicle:</span> {ride.vehicle.model}</p>
+        <p className="font-semibold text-green-400">
+            <span className="font-medium text-gray-500">Seats Left:</span> {ride.seats_available}
+        </p>
+      </div>
+      <div className="p-3 bg-gray-900/50">
+        <button
+          // --- THIS IS THE FIX ---
+          // Use navigate to go to the ride details page
+          onClick={() => navigate(`/ride/${ride.ride_id}`)}
+          // --- REMOVE THE OLD ALERT ---
+          // onClick={() => alert(`Booking for ride ${ride.ride_id} not implemented yet.`)}
+
+          className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold py-2 px-4 rounded-md hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-50 flex items-center justify-center gap-2 text-sm"
+        >
+           Details <FiArrowRight />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
+/**
+ * Home page component - Modern Dark Theme.
+ */
 const Home = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    origin: 'Electronic City',
+    destination: 'PES University',
+    ride_date: '2025-10-27',
+    min_seats: 1
+  });
   const [rides, setRides] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({
-    from_loc: "",
-    to_loc: "",
-    date: "",
-    min_seats: 1,
-  });
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchRides();
-  }, []);
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-  const fetchRides = async (searchFilters = {}) => {
+  const handleSearch = async (e) => {
+    e.preventDefault();
     setLoading(true);
+    setError(null);
+    setRides([]);
+
     try {
-      const params = new URLSearchParams();
-      Object.entries(searchFilters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
-      });
-      const response = await api.get(`/rides?${params}`);
+      const response = await api.get("/rides/", { params: formData });
       setRides(response.data);
-    } catch (error) {
-      toast.error("Failed to fetch rides");
+      if (response.data.length === 0) {
+        setError("No rides found for this route. Be the first to post one!");
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || "Couldn't fetch rides. Server might be down.";
+      setError(errorMsg);
+      console.error("Search error:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchRides(filters);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <Navbar />
-      
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl sm:text-5xl font-bold mb-4" data-testid="hero-title">
-              Share Your Ride, Save the Planet
-            </h1>
-            <p className="text-xl opacity-90">Find or offer carpools to PES University</p>
-          </div>
+    <div className="min-h-screen bg-gray-900 text-gray-200">
 
-          {/* Search Form */}
-          <Card className="max-w-4xl mx-auto shadow-2xl border-0" data-testid="search-card">
-            <CardContent className="p-6">
-              <form onSubmit={handleSearch} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="from" className="text-sm font-medium">From</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        id="from"
-                        placeholder="Electronic City"
-                        value={filters.from_loc}
-                        onChange={(e) => setFilters({ ...filters, from_loc: e.target.value })}
-                        className="pl-10"
-                        data-testid="from-input"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="to" className="text-sm font-medium">To</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        id="to"
-                        placeholder="PES University"
-                        value={filters.to_loc}
-                        onChange={(e) => setFilters({ ...filters, to_loc: e.target.value })}
-                        className="pl-10"
-                        data-testid="to-input"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="date" className="text-sm font-medium">Date</Label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        id="date"
-                        type="date"
-                        value={filters.date}
-                        onChange={(e) => setFilters({ ...filters, date: e.target.value })}
-                        className="pl-10"
-                        data-testid="date-input"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="seats" className="text-sm font-medium">Min Seats</Label>
-                    <div className="relative">
-                      <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        id="seats"
-                        type="number"
-                        min="1"
-                        value={filters.min_seats}
-                        onChange={(e) => setFilters({ ...filters, min_seats: parseInt(e.target.value) || 1 })}
-                        className="pl-10"
-                        data-testid="seats-input"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-11"
-                  data-testid="search-btn"
-                >
-                  <Search className="w-4 h-4 mr-2" />
-                  {loading ? "Searching..." : "Search Rides"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+      {/* --- Top Hero Section --- */}
+      <div className="relative text-center pt-16 pb-24 md:pt-20 md:pb-28 px-4 bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 shadow-xl overflow-hidden">
+        <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">Share Your Ride, Save the Planet</h1>
+        <p className="text-md md:text-lg text-gray-400 max-w-2xl mx-auto">Find or offer carpools to PES University.</p>
       </div>
 
-      {/* Rides List */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {!user && (
-          <Card className="mb-8 bg-blue-50 border-blue-200" data-testid="guest-notice">
-            <CardContent className="p-6 text-center">
-              <Car className="w-12 h-12 mx-auto mb-3 text-blue-600" />
-              <h3 className="text-lg font-semibold mb-2">Welcome to PES Carpool!</h3>
-              <p className="text-gray-600 mb-4">Sign in to book rides or post your own</p>
-              <div className="flex justify-center space-x-4">
-                <Button onClick={() => navigate("/login")} data-testid="guest-login-btn">
-                  Login
-                </Button>
-                <Button variant="outline" onClick={() => navigate("/register")} data-testid="guest-register-btn">
-                  Sign Up
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+      {/* --- Search Form Container --- */}
+      <div className="relative px-4 -mt-16 md:-mt-20 z-10">
+        <form
+          onSubmit={handleSearch}
+          className="grid grid-cols-1 md:grid-cols-10 items-end gap-4 p-5 md:p-6 bg-gray-800 shadow-2xl rounded-xl border border-gray-700 max-w-5xl mx-auto ring-1 ring-white/10"
+        >
+          {/* Input fields with dark style */}
+          <div className="md:col-span-2">
+            <label htmlFor="origin" className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wider">From</label>
+            <div className="relative flex items-center">
+              <FaMapMarkerAlt className="absolute left-3.5 text-gray-500" />
+              <input type="text" id="origin" name="origin" value={formData.origin} onChange={handleChange} required className="bg-gray-700 border border-gray-600 text-gray-100 p-3 pl-10 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all shadow-sm placeholder-gray-500"/>
+            </div>
+          </div>
+
+          <div className="md:col-span-2">
+            <label htmlFor="destination" className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wider">To</label>
+            <div className="relative flex items-center">
+              <FaFlagCheckered className="absolute left-3.5 text-gray-500" />
+              <input type="text" id="destination" name="destination" value={formData.destination} onChange={handleChange} required className="bg-gray-700 border border-gray-600 text-gray-100 p-3 pl-10 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all shadow-sm placeholder-gray-500"/>
+            </div>
+          </div>
+
+          <div className="md:col-span-2">
+            <label htmlFor="ride_date" className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wider">Date</label>
+            <div className="relative flex items-center">
+               <FaCalendarAlt className="absolute left-3.5 text-gray-500" />
+              <input type="date" id="ride_date" name="ride_date" value={formData.ride_date} onChange={handleChange} required className="bg-gray-700 border border-gray-600 text-gray-100 p-3 pl-10 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all shadow-sm appearance-none" style={{ colorScheme: 'dark' }}/>
+            </div>
+          </div>
+
+          <div className="md:col-span-1">
+            <label htmlFor="min_seats" className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wider">Seats</label>
+            <div className="relative flex items-center">
+              <FaUsers className="absolute left-3.5 text-gray-500" />
+              <input type="number" id="min_seats" name="min_seats" min="1" value={formData.min_seats} onChange={handleChange} required className="bg-gray-700 border border-gray-600 text-gray-100 p-3 pl-10 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all shadow-sm placeholder-gray-500"/>
+            </div>
+          </div>
+
+          {/* Search Button (Accent gradient) */}
+          <div className="md:col-span-3 mt-4 md:mt-0">
+             <label className="block text-sm font-medium text-transparent mb-1.5 hidden md:block">.</label>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white p-3.5 rounded-lg font-semibold hover:from-cyan-600 hover:to-purple-600 disabled:opacity-50 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-70 shadow-lg hover:shadow-cyan-500/30"
+            >
+              <FaSearch />
+              {loading ? "Searching..." : "Find Ride"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* --- Results Section --- */}
+      <div className="results-list mt-12 md:mt-16 px-4 pb-12">
+        {loading && (
+          <div className="text-center py-10">
+              <p className="text-lg text-cyan-400 animate-pulse font-medium">Searching...</p>
+          </div>
         )}
 
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900" data-testid="rides-title">
-            Available Rides ({rides.length})
-          </h2>
-          {user?.is_driver && (
-            <Button
-              onClick={() => navigate("/post-ride")}
-              className="bg-blue-600 hover:bg-blue-700"
-              data-testid="cta-post-ride-btn"
-            >
-              <Car className="w-4 h-4 mr-2" />
-              Post a Ride
-            </Button>
-          )}
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        {error && !loading && (
+          <div className="bg-red-900/50 border border-red-700 text-red-300 px-6 py-4 rounded-lg text-center max-w-3xl mx-auto shadow-md">
+             <p className="font-semibold mb-1">Error</p>
+             <p>{error}</p>
           </div>
-        ) : rides.length === 0 ? (
-          <Card className="p-12 text-center" data-testid="no-rides">
-            <Car className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No rides found</h3>
-            <p className="text-gray-500">Try adjusting your search filters</p>
-          </Card>
-        ) : (
-          <div className="grid gap-6" data-testid="rides-list">
-            {rides.map((ride) => (
-              <RideCard key={ride.id} ride={ride} />
+        )}
+
+        {!loading && !error && rides.length > 0 && (
+          <div className="space-y-5">
+            <h2 className="text-center text-xl font-semibold text-gray-300 mb-4 tracking-wide">Available Rides</h2>
+            {rides.map(ride => (
+              <RideCard key={ride.ride_id} ride={ride} />
             ))}
           </div>
         )}
+
+         {!loading && !error && rides.length === 0 && (
+          <p className="text-center text-gray-500 mt-8 text-lg">
+             No rides found. Try searching again or post your own!
+          </p>
+        )}
       </div>
+
+       {/* Simple Dark Footer */}
+       <footer className="text-center py-6 border-t border-gray-700 text-gray-500 text-xs">
+          © {new Date().getFullYear()} PES Carpool | Ride Smart.
+       </footer>
     </div>
   );
 };

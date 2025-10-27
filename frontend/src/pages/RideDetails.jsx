@@ -1,270 +1,221 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import Navbar from "@/components/Navbar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import api from "@/api/api";
-import { toast } from "sonner";
-import { MapPin, Calendar, Clock, Users, IndianRupee, Car, Phone, User, Leaf, ArrowLeft } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import api from '../api/api'; // Your Axios instance
+import { useAuth } from '../context/AuthContext'; // To check login status
+import { FaMapMarkerAlt, FaFlagCheckered, FaCalendarAlt, FaUsers, FaCarAlt, FaUserCircle, FaMoneyBillWave } from 'react-icons/fa';
 
 const RideDetails = () => {
-  const { id } = useParams();
-  const { user } = useAuth();
+  const { rideId } = useParams(); // Get the ride ID from the URL (e.g., /ride/6)
   const navigate = useNavigate();
+  const { user } = useAuth(); // Get the currently logged-in user (or null)
+
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [seatsToBook, setSeatsToBook] = useState(1);
-  const [booking, setBooking] = useState(false);
+  const [error, setError] = useState(null);
+  const [bookingError, setBookingError] = useState(null);
+  const [bookingSuccess, setBookingSuccess] = useState(null);
+  const [seatsToBook, setSeatsToBook] = useState(1); // How many seats to book
 
   useEffect(() => {
-    fetchRide();
-  }, [id]);
+    const fetchRideDetails = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Use the new backend endpoint to get details for this specific ride
+        const response = await api.get(`/rides/${rideId}`);
+        setRide(response.data);
+      } catch (err) {
+        setError("Could not load ride details. It might no longer exist.");
+        console.error("Fetch ride details error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchRide = async () => {
-    try {
-      const response = await api.get(`/rides/${id}`);
-      setRide(response.data);
-    } catch (error) {
-      toast.error("Failed to fetch ride details");
-      navigate("/");
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchRideDetails();
+  }, [rideId]); // Re-run if the rideId in the URL changes
 
-  const handleBook = async () => {
+  const handleBooking = async () => {
+    setBookingError(null);
+    setBookingSuccess(null);
+
+    // 1. Check if user is logged in
     if (!user) {
-      toast.error("Please login to book a ride");
-      navigate("/login");
+      navigate('/login'); // Redirect to login if not logged in
       return;
     }
 
-    if (seatsToBook < 1 || seatsToBook > ride.seats_available) {
-      toast.error("Invalid number of seats");
-      return;
+    // 2. Simple validation (can be improved)
+    if (seatsToBook < 1) {
+        setBookingError("Please select at least 1 seat.");
+        return;
+    }
+     if (seatsToBook > ride.seats_available) {
+        setBookingError(`Only ${ride.seats_available} seats are available.`);
+        return;
     }
 
-    setBooking(true);
+
     try {
-      await api.post(`/rides/${id}/book`, { seats_booked: seatsToBook });
-      toast.success("Ride booked successfully!");
-      navigate("/bookings");
-    } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to book ride");
-    } finally {
-      setBooking(false);
+      // 3. Make the booking API call
+      const bookingData = {
+        ride_id: parseInt(rideId, 10), // Ensure rideId is a number
+        seats_booked: seatsToBook,
+      };
+      const response = await api.post('/bookings/', bookingData); // Use the booking endpoint
+
+      // 4. Handle success
+      setBookingSuccess(`Successfully booked ${seatsToBook} seat(s)! Redirecting to My Bookings...`);
+      // Update ride state locally (optional, but good UX)
+      setRide(prevRide => ({
+          ...prevRide,
+          seats_available: prevRide.seats_available - seatsToBook
+      }));
+
+      // Redirect to the 'My Bookings' page after a short delay
+      setTimeout(() => {
+        navigate('/my-bookings'); // Redirect to the page showing user's bookings
+      }, 2500);
+
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || "Booking failed. Please try again.";
+      setBookingError(errorMsg);
+      console.error("Booking error:", err);
     }
   };
 
-  const calculateCO2 = () => {
-    if (!ride || seatsToBook <= 0) return 0;
-    const co2Grams = seatsToBook * ride.distance_km * 120;
-    return (co2Grams / 1000).toFixed(1);
+  const formatDateTime = (dateTimeString) => {
+    const date = new Date(dateTimeString);
+    return date.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' }); // More detailed format
   };
 
+  // --- Render Loading State ---
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <Navbar />
-        <div className="flex justify-center items-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        </div>
-      </div>
-    );
+    return <div className="text-center py-20 text-cyan-400 text-xl">Loading Ride Details...</div>;
   }
 
-  if (!ride) return null;
+  // --- Render Error State ---
+  if (error) {
+    return <div className="text-center py-20 text-red-400 bg-red-900/50 max-w-md mx-auto p-6 rounded-lg">{error}</div>;
+  }
 
-  const isDriver = user?.id === ride.driver_id;
+  // --- Render Ride Not Found ---
+  if (!ride) {
+    return <div className="text-center py-20 text-gray-500">Ride not found.</div>;
+  }
 
+  // --- Render Ride Details ---
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <Navbar />
-      
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <Button
-          onClick={() => navigate("/")}
-          variant="ghost"
-          className="mb-6"
-          data-testid="back-btn"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Rides
-        </Button>
-
-        <div className="grid gap-6">
-          {/* Main Ride Details */}
-          <Card className="border-l-4 border-l-blue-500 shadow-lg" data-testid="ride-details-card">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-2xl">Ride Details</CardTitle>
-                <Badge className="bg-green-100 text-green-800" data-testid="status-badge">
-                  {ride.status}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Route */}
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <MapPin className="w-6 h-6 text-green-600" />
-                  <div>
-                    <div className="text-sm text-gray-500">From</div>
-                    <div className="text-xl font-semibold" data-testid="detail-start">{ride.start_location}</div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 pl-3">
-                  <div className="text-2xl text-gray-400">↓</div>
-                  <div className="text-sm text-gray-500">{ride.distance_km} km</div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <MapPin className="w-6 h-6 text-red-600" />
-                  <div>
-                    <div className="text-sm text-gray-500">To</div>
-                    <div className="text-xl font-semibold" data-testid="detail-end">{ride.end_location}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Info Grid */}
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                <div className="flex items-center space-x-3">
-                  <Calendar className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <div className="text-sm text-gray-500">Date</div>
-                    <div className="font-medium" data-testid="detail-date">{ride.date}</div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Clock className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <div className="text-sm text-gray-500">Time</div>
-                    <div className="font-medium" data-testid="detail-time">{ride.time}</div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Users className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <div className="text-sm text-gray-500">Seats Available</div>
-                    <div className="font-medium" data-testid="detail-seats">{ride.seats_available} / {ride.seats_total}</div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <IndianRupee className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <div className="text-sm text-gray-500">Price per Seat</div>
-                    <div className="font-medium text-blue-600 text-lg" data-testid="detail-price">₹{ride.price_per_seat}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Vehicle */}
-              <div className="flex items-center space-x-3 pt-4 border-t">
-                <Car className="w-5 h-5 text-gray-400" />
-                <div>
-                  <div className="text-sm text-gray-500">Vehicle</div>
-                  <div className="font-medium" data-testid="detail-vehicle">{ride.vehicle}</div>
-                </div>
-              </div>
-
-              {/* Notes */}
-              {ride.notes && (
-                <div className="pt-4 border-t">
-                  <div className="text-sm text-gray-500 mb-2">Notes</div>
-                  <div className="bg-gray-50 p-3 rounded-lg" data-testid="detail-notes">{ride.notes}</div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Driver Info */}
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle>Driver Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
-                  {ride.driver_name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <User className="w-4 h-4 text-gray-400" />
-                    <span className="font-semibold text-lg" data-testid="detail-driver-name">{ride.driver_name}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-gray-600">
-                    <Phone className="w-4 h-4 text-gray-400" />
-                    <span data-testid="detail-driver-phone">{ride.driver_phone}</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Booking Section */}
-          {!isDriver && ride.seats_available > 0 && (
-            <Card className="shadow-lg bg-gradient-to-br from-blue-50 to-purple-50" data-testid="booking-card">
-              <CardHeader>
-                <CardTitle>Book This Ride</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="seats">Number of Seats</Label>
-                  <Input
-                    id="seats"
-                    type="number"
-                    min="1"
-                    max={ride.seats_available}
-                    value={seatsToBook}
-                    onChange={(e) => setSeatsToBook(parseInt(e.target.value) || 1)}
-                    data-testid="seats-book-input"
-                  />
-                </div>
-
-                <div className="bg-white p-4 rounded-lg space-y-2">
-                  <div className="flex justify-between">
-                    <span>Price per seat:</span>
-                    <span className="font-semibold">₹{ride.price_per_seat}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Seats:</span>
-                    <span className="font-semibold">{seatsToBook}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                    <span>Total:</span>
-                    <span className="text-blue-600" data-testid="total-price">₹{ride.price_per_seat * seatsToBook}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-center space-x-2 text-green-600 bg-green-50 p-3 rounded-lg">
-                  <Leaf className="w-5 h-5" />
-                  <span className="font-medium">You'll save {calculateCO2()} kg CO₂</span>
-                </div>
-
-                <Button
-                  onClick={handleBook}
-                  disabled={booking || !user}
-                  className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg"
-                  data-testid="book-ride-btn"
-                >
-                  {booking ? "Booking..." : user ? "Confirm Booking" : "Login to Book"}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {isDriver && (
-            <Card className="shadow-lg bg-yellow-50 border-yellow-200">
-              <CardContent className="p-6 text-center">
-                <p className="text-yellow-800 font-medium">This is your ride</p>
-              </CardContent>
-            </Card>
-          )}
+    <div className="container mx-auto max-w-3xl p-4 md:p-8">
+      <div className="bg-gray-800 shadow-xl rounded-lg overflow-hidden border border-gray-700">
+        {/* Header Section */}
+        <div className="p-6 bg-gradient-to-r from-gray-800 via-gray-900 to-black border-b border-gray-700">
+          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-2 flex items-center gap-3">
+             <FaCarAlt /> {ride.origin} → {ride.destination}
+          </h1>
+          <p className="text-lg text-gray-300 flex items-center gap-2">
+            <FaCalendarAlt className="text-cyan-500"/> {formatDateTime(ride.date_time)}
+          </p>
         </div>
+
+        {/* Details Grid */}
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-300">
+          {/* Driver Info */}
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-gray-100 border-b border-gray-700 pb-1 mb-2 flex items-center gap-2"><FaUserCircle className="text-cyan-500"/> Driver Details</h2>
+            <p><span className="font-medium text-gray-500 w-20 inline-block">Name:</span> {ride.driver.name}</p>
+            <p><span className="font-medium text-gray-500 w-20 inline-block">Contact:</span> {ride.driver.phone}</p> {/* Consider showing only if booked */}
+          </div>
+
+           {/* Vehicle Info */}
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-gray-100 border-b border-gray-700 pb-1 mb-2 flex items-center gap-2"><FaCarAlt className="text-cyan-500"/> Vehicle Details</h2>
+            <p><span className="font-medium text-gray-500 w-20 inline-block">Model:</span> {ride.vehicle.model}</p>
+            <p><span className="font-medium text-gray-500 w-20 inline-block">Seats:</span> {ride.vehicle.seat_capacity} total</p>
+          </div>
+
+          {/* Ride Info */}
+          <div className="md:col-span-2 space-y-2 pt-4">
+             <h2 className="text-lg font-semibold text-gray-100 border-b border-gray-700 pb-1 mb-2 flex items-center gap-2"><FaMoneyBillWave className="text-cyan-500"/> Booking Info</h2>
+             <p className="text-2xl font-bold text-cyan-400">
+                ${ride.price.toFixed(2)} <span className="text-sm text-gray-400 font-normal">per seat</span>
+             </p>
+             <p className={`text-xl font-bold ${ride.seats_available > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {ride.seats_available} {ride.seats_available === 1 ? 'Seat' : 'Seats'} Available
+             </p>
+          </div>
+        </div>
+
+        {/* Booking Action Area */}
+        {ride.seats_available > 0 && user && user.user_id !== ride.driver_id && ( // Only show if seats available, user logged in, and not the driver
+          <div className="p-6 border-t border-gray-700 bg-gray-900/30">
+            <h2 className="text-lg font-semibold text-gray-100 mb-3">Book Your Seat(s)</h2>
+
+            {/* Success Message */}
+            {bookingSuccess && (
+              <div className="bg-green-900/50 border border-green-700 text-green-300 px-4 py-3 rounded mb-4">
+                {bookingSuccess}
+              </div>
+            )}
+            {/* Error Message */}
+            {bookingError && (
+              <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded mb-4">
+                {bookingError}
+              </div>
+            )}
+
+            {!bookingSuccess && ( // Hide form/button after successful booking
+                <div className="flex items-center gap-4">
+                <div className="flex-shrink-0">
+                    <label htmlFor="seatsToBook" className="block text-sm font-medium text-gray-400 mb-1">Seats:</label>
+                    <select
+                        id="seatsToBook"
+                        value={seatsToBook}
+                        onChange={(e) => setSeatsToBook(parseInt(e.target.value, 10))}
+                        className="bg-gray-700 border border-gray-600 text-gray-100 p-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    >
+                        {/* Generate options based on available seats */}
+                        {[...Array(ride.seats_available).keys()].map(i => (
+                        <option key={i + 1} value={i + 1}>
+                            {i + 1}
+                        </option>
+                        ))}
+                    </select>
+                </div>
+                <button
+                    onClick={handleBooking}
+                    disabled={loading || bookingSuccess} // Disable after success
+                    className="flex-grow bg-gradient-to-r from-cyan-500 to-purple-500 text-white p-3 rounded-lg font-semibold hover:from-cyan-600 hover:to-purple-600 disabled:opacity-50 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-70 shadow-md hover:shadow-lg"
+                >
+                    Book Now
+                </button>
+                </div>
+            )}
+          </div>
+        )}
+
+        {/* Message if user is the driver */}
+         {user && user.user_id === ride.driver_id && (
+             <div className="p-6 text-center text-gray-500 border-t border-gray-700">This is your ride.</div>
+         )}
+
+         {/* Message if no seats available */}
+         {ride.seats_available <= 0 && (
+             <div className="p-6 text-center text-red-400 border-t border-gray-700">This ride is fully booked.</div>
+         )}
+
+        {/* Prompt to login if not logged in */}
+        {!user && ride.seats_available > 0 && (
+          <div className="p-6 text-center border-t border-gray-700">
+            <button
+              onClick={() => navigate('/login')}
+              className="text-cyan-400 hover:text-cyan-300 font-semibold"
+            >
+              Log in to book this ride
+            </button>
+          </div>
+        )}
+
       </div>
     </div>
   );

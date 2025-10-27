@@ -1,38 +1,51 @@
-import axios from "axios";
+import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API_BASE = `${BACKEND_URL}/api`;
-
+// 1. Create the base Axios instance
 const api = axios.create({
-  baseURL: API_BASE,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: "http://127.0.0.1:8000/api" // Your backend API URL
 });
 
-// Add token to requests
+// 2. Add a request interceptor
+// This function runs *before* every single request you make using 'api'
 api.interceptors.request.use(
   (config) => {
+    // Get the token from localStorage
     const token = localStorage.getItem("token");
+    
+    // If the token exists, add it to the Authorization header
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
-    return config;
+    
+    return config; // Continue with the request
   },
   (error) => {
+    // Handle request errors
     return Promise.reject(error);
   }
 );
 
-// Handle response errors
+// 3. Add a response interceptor (This part is crucial)
+// This automatically handles expired tokens
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // If the request was successful, just return the response
+    return response;
+  },
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
+    // Check if the error is a 401 Unauthorized
+    if (error.response && error.response.status === 401) {
+      console.log("Token expired or invalid. Logging out.");
+      
+      // Remove the bad token
+      localStorage.removeItem("token"); 
+      
+      // Reload the page to force the user to the login screen
+      // This also clears any user state in React
+      window.location.href = '/login'; 
     }
+    
+    // Return the error so the component can handle it (e.g., show a message)
     return Promise.reject(error);
   }
 );

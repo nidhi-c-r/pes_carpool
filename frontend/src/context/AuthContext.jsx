@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import api from "@/api/api";
+import React, { createContext, useContext, useState } from "react";
+// No api import needed here
 
 const AuthContext = createContext(null);
 
@@ -12,58 +12,26 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  // Always start with user as null
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // No initial loading needed
 
-  useEffect(() => {
-    const initAuth = async () => {
-      const token = localStorage.getItem("token");
-      const storedUser = localStorage.getItem("user");
+  // useEffect hook removed - app will not load user from token automatically
 
-      if (token && storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-          // Verify token is still valid
-          await api.get("/auth/me");
-        } catch (error) {
-          console.error("Token validation failed:", error);
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          setUser(null);
-        }
-      }
-      setLoading(false);
-    };
-
-    initAuth();
-  }, []);
-
-  const login = async (email, password) => {
-    const response = await api.post("/auth/login", { email, password });
-    const { access_token, user: userData } = response.data;
-    localStorage.setItem("token", access_token);
-    localStorage.setItem("user", JSON.stringify(userData));
-    setUser(userData);
-    return userData;
-  };
-
-  const register = async (userData) => {
-    const response = await api.post("/auth/register", userData);
-    const { access_token, user: newUser } = response.data;
-    localStorage.setItem("token", access_token);
-    localStorage.setItem("user", JSON.stringify(newUser));
-    setUser(newUser);
-    return newUser;
-  };
-
+  // Logout function
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.removeItem("token"); // Remove token if it exists
     setUser(null);
   };
 
+  // Function for Login.jsx to call after successful login and user fetch
+  const setUserAfterLogin = (userData) => {
+    setUser(userData);
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    // Provide user, loading state, logout function, and the new function
+    <AuthContext.Provider value={{ user, loading, logout, setUserAfterLogin }}>
       {children}
     </AuthContext.Provider>
   );
