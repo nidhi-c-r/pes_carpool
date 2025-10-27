@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Make sure useNavigate is imported
-import api from '../api/api'; // Make sure this path is correct
+import { useNavigate } from 'react-router-dom';
+import api from '../api/api'; 
 // Using react-icons
 import { FaMapMarkerAlt, FaFlagCheckered, FaCalendarAlt, FaUsers, FaSearch, FaCarAlt } from 'react-icons/fa';
-import { FiArrowRight } from "react-icons/fi";
+import { FiArrowRight } from "react-icons/fi"; 
 
 /**
- * RideCard component - Dark Mode Style
+ * RideCard component - Dark Mode Style (Fixed Currency Symbol)
  */
 const RideCard = ({ ride }) => {
-  const navigate = useNavigate(); // Get the navigate function
+  const navigate = useNavigate();
   const formatDateTime = (dateTimeString) => {
     const date = new Date(dateTimeString);
-    return date.toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+    return date.toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' }); 
   };
 
   return (
@@ -24,7 +24,8 @@ const RideCard = ({ ride }) => {
              <FaCarAlt className="text-cyan-500" />
             {ride.origin} → {ride.destination}
           </h3>
-          <span className="text-xl font-bold text-cyan-400">${ride.price.toFixed(2)}</span>
+          {/* --- FIXED: Changed '$' to '₹' --- */}
+          <span className="text-xl font-bold text-cyan-400">₹{ride.price.toFixed(2)}</span>
         </div>
         <p className="text-xs text-gray-400">
           {formatDateTime(ride.date_time)}
@@ -39,13 +40,8 @@ const RideCard = ({ ride }) => {
       </div>
       <div className="p-3 bg-gray-900/50">
         <button
-          // --- THIS IS THE FIX ---
-          // Use navigate to go to the ride details page
           onClick={() => navigate(`/ride/${ride.ride_id}`)}
-          // --- REMOVE THE OLD ALERT ---
-          // onClick={() => alert(`Booking for ride ${ride.ride_id} not implemented yet.`)}
-
-          className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold py-2 px-4 rounded-md hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-50 flex items-center justify-center gap-2 text-sm"
+          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold py-2 px-4 rounded-md hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-50 text-sm"
         >
            Details <FiArrowRight />
         </button>
@@ -109,7 +105,6 @@ const Home = () => {
           onSubmit={handleSearch}
           className="grid grid-cols-1 md:grid-cols-10 items-end gap-4 p-5 md:p-6 bg-gray-800 shadow-2xl rounded-xl border border-gray-700 max-w-5xl mx-auto ring-1 ring-white/10"
         >
-          {/* Input fields with dark style */}
           <div className="md:col-span-2">
             <label htmlFor="origin" className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wider">From</label>
             <div className="relative flex items-center">
@@ -142,7 +137,6 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Search Button (Accent gradient) */}
           <div className="md:col-span-3 mt-4 md:mt-0">
              <label className="block text-sm font-medium text-transparent mb-1.5 hidden md:block">.</label>
             <button

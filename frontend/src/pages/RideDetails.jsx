@@ -5,23 +5,22 @@ import { useAuth } from '../context/AuthContext'; // To check login status
 import { FaMapMarkerAlt, FaFlagCheckered, FaCalendarAlt, FaUsers, FaCarAlt, FaUserCircle, FaMoneyBillWave } from 'react-icons/fa';
 
 const RideDetails = () => {
-  const { rideId } = useParams(); // Get the ride ID from the URL (e.g., /ride/6)
+  const { rideId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth(); // Get the currently logged-in user (or null)
+  const { user } = useAuth(); 
 
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [bookingError, setBookingError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(null);
-  const [seatsToBook, setSeatsToBook] = useState(1); // How many seats to book
+  const [seatsToBook, setSeatsToBook] = useState(1);
 
   useEffect(() => {
     const fetchRideDetails = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Use the new backend endpoint to get details for this specific ride
         const response = await api.get(`/rides/${rideId}`);
         setRide(response.data);
       } catch (err) {
@@ -33,19 +32,17 @@ const RideDetails = () => {
     };
 
     fetchRideDetails();
-  }, [rideId]); // Re-run if the rideId in the URL changes
+  }, [rideId]);
 
   const handleBooking = async () => {
     setBookingError(null);
     setBookingSuccess(null);
 
-    // 1. Check if user is logged in
     if (!user) {
-      navigate('/login'); // Redirect to login if not logged in
+      navigate('/login');
       return;
     }
 
-    // 2. Simple validation (can be improved)
     if (seatsToBook < 1) {
         setBookingError("Please select at least 1 seat.");
         return;
@@ -57,24 +54,21 @@ const RideDetails = () => {
 
 
     try {
-      // 3. Make the booking API call
       const bookingData = {
-        ride_id: parseInt(rideId, 10), // Ensure rideId is a number
+        ride_id: parseInt(rideId, 10),
         seats_booked: seatsToBook,
       };
-      const response = await api.post('/bookings/', bookingData); // Use the booking endpoint
+      const response = await api.post('/bookings/', bookingData);
 
-      // 4. Handle success
       setBookingSuccess(`Successfully booked ${seatsToBook} seat(s)! Redirecting to My Bookings...`);
-      // Update ride state locally (optional, but good UX)
+      
       setRide(prevRide => ({
           ...prevRide,
           seats_available: prevRide.seats_available - seatsToBook
       }));
 
-      // Redirect to the 'My Bookings' page after a short delay
       setTimeout(() => {
-        navigate('/my-bookings'); // Redirect to the page showing user's bookings
+        navigate('/my-bookings');
       }, 2500);
 
     } catch (err) {
@@ -86,20 +80,16 @@ const RideDetails = () => {
 
   const formatDateTime = (dateTimeString) => {
     const date = new Date(dateTimeString);
-    return date.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' }); // More detailed format
+    return date.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });
   };
 
-  // --- Render Loading State ---
+  // --- Render States ---
   if (loading) {
     return <div className="text-center py-20 text-cyan-400 text-xl">Loading Ride Details...</div>;
   }
-
-  // --- Render Error State ---
   if (error) {
     return <div className="text-center py-20 text-red-400 bg-red-900/50 max-w-md mx-auto p-6 rounded-lg">{error}</div>;
   }
-
-  // --- Render Ride Not Found ---
   if (!ride) {
     return <div className="text-center py-20 text-gray-500">Ride not found.</div>;
   }
@@ -124,7 +114,7 @@ const RideDetails = () => {
           <div className="space-y-2">
             <h2 className="text-lg font-semibold text-gray-100 border-b border-gray-700 pb-1 mb-2 flex items-center gap-2"><FaUserCircle className="text-cyan-500"/> Driver Details</h2>
             <p><span className="font-medium text-gray-500 w-20 inline-block">Name:</span> {ride.driver.name}</p>
-            <p><span className="font-medium text-gray-500 w-20 inline-block">Contact:</span> {ride.driver.phone}</p> {/* Consider showing only if booked */}
+            <p><span className="font-medium text-gray-500 w-20 inline-block">Contact:</span> {ride.driver.phone}</p>
           </div>
 
            {/* Vehicle Info */}
@@ -138,7 +128,8 @@ const RideDetails = () => {
           <div className="md:col-span-2 space-y-2 pt-4">
              <h2 className="text-lg font-semibold text-gray-100 border-b border-gray-700 pb-1 mb-2 flex items-center gap-2"><FaMoneyBillWave className="text-cyan-500"/> Booking Info</h2>
              <p className="text-2xl font-bold text-cyan-400">
-                ${ride.price.toFixed(2)} <span className="text-sm text-gray-400 font-normal">per seat</span>
+                {/* --- FIXED: Added '₹' --- */}
+                ₹{ride.price.toFixed(2)} <span className="text-sm text-gray-400 font-normal">per seat</span>
              </p>
              <p className={`text-xl font-bold ${ride.seats_available > 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {ride.seats_available} {ride.seats_available === 1 ? 'Seat' : 'Seats'} Available

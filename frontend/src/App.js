@@ -8,21 +8,35 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import RideDetails from './pages/RideDetails';
-import Bookings from './pages/Bookings'; // Ensure this is imported
-// import PostRide from './pages/PostRide';
+import Bookings from './pages/Bookings'; 
+import PostRide from './pages/PostRide'; // Import the new component
+// import MyRides from './pages/MyRides'; // Assuming this page is the redirect target
 
+// --- Private Route Guards ---
 
+// General private route (must be logged in)
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen bg-gray-900 flex items-center justify-center"><FaSpinner className="animate-spin text-cyan-400 h-10 w-10" /></div>; // Dark loading
+  if (loading) return <div>Loading...</div>; 
   if (!user) return <Navigate to="/login" replace />;
+  return children;
+};
+
+// Route only for Drivers
+const DriverRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div>Loading...</div>; 
+  if (!user) return <Navigate to="/login" replace />; // Must be logged in
+  if (user.role.toLowerCase() !== 'driver') {
+      // Redirect non-drivers to home
+      return <Navigate to="/" replace />; 
+  }
   return children;
 };
 
 
 function AppContent() {
   return (
-    // Assuming bg-gray-900 is set here for consistent dark theme
     <div className="flex flex-col min-h-screen bg-gray-900 text-gray-200">
       <Navbar />
       <main className="flex-grow">
@@ -33,15 +47,23 @@ function AppContent() {
           <Route path="/register" element={<Register />} />
           <Route path="/ride/:rideId" element={<RideDetails />} />
 
-          {/* --- Private Route for My Bookings --- */}
+          {/* --- Private Routes --- */}
           <Route
-            path="/my-bookings" // This path must match the navigate() call
-            element={<PrivateRoute><Bookings /></PrivateRoute>} // Wrap Bookings component
+            path="/my-bookings"
+            element={<PrivateRoute><Bookings /></PrivateRoute>}
           />
+
+          {/* DRIVER-ONLY Route */}
+          <Route
+            path="/post-ride" // Path from Navbar
+            element={<DriverRoute><PostRide /></DriverRoute>} // Protected by DriverRoute
+          />
+          {/* Assuming you will implement MyRides next */}
           {/* <Route
-            path="/post-ride"
-            element={<PrivateRoute><PostRide /></PrivateRoute>}
+            path="/my-rides" // Redirect target from PostRide.jsx
+            element={<DriverRoute><MyRides /></DriverRoute>}
           /> */}
+          
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />

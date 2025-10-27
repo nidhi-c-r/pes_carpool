@@ -1,11 +1,15 @@
 # backend/schemas.py
-
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+from enum import Enum
 from datetime import datetime, date, time
 
-# --- User Schemas ---
+# New Enums
+class UserType(str, Enum):
+    student = "student"
+    professor = "professor"
 
+# --- User Schemas (Updated) ---
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
@@ -13,6 +17,9 @@ class UserCreate(BaseModel):
     phone: str
     srn: str
     role: str # 'driver' or 'passenger'
+    user_type: UserType
+
+    # Removed vehicle fields: they are now optional/handled by separate endpoint
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -25,10 +32,23 @@ class UserOut(BaseModel):
     phone: str
     srn: str
     role: str
+    user_type: UserType
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
 
+# --- NEW DRIVER ONBOARDING SCHEMA ---
+class DriverOnboard(BaseModel):
+    # These fields capture vehicle and initial ride details after login
+    origin: str
+    destination: str
+    vehicle_model: str
+    license_plate: str
+    seats_available: int
+    price: float
+    distance_km: float
+    
+# ... (keep Token, Vehicle, Ride, and Booking schemas) ...
 # --- Token Schemas ---
 class Token(BaseModel):
     access_token: str

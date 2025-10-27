@@ -17,7 +17,6 @@ if not DATABASE_URL:
 
 engine = create_async_engine(DATABASE_URL, echo=True)
 
-# Important: Use autocommit=False and autoflush=False
 AsyncSessionLocal = sessionmaker(
     bind=engine,
     class_=AsyncSession,
@@ -28,18 +27,20 @@ Base = declarative_base()
 
 # FINAL, CORRECT Dependency for Transaction Management
 async def get_db_session():
-    # Create a fresh session instance
+    # 1. Create a fresh session instance
     session = AsyncSessionLocal()
     try:
-        # Provide the session to the route handler
+        # 2. Provide the session to the route handler
         yield session
         
-        # Explicitly commit the transaction for POST/PUT/DELETE requests
+        # 3. Explicitly commit the transaction for POST/PUT/DELETE routes.
         await session.commit()
+        
     except Exception:
-        # Rollback all changes if any error occurs
+        # 4. Rollback all changes if any error occurs
         await session.rollback()
         raise # Re-raise the exception to be handled by FastAPI
+        
     finally:
-        # Always close the session
+        # 5. Always close the session
         await session.close()

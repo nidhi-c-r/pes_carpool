@@ -12,6 +12,7 @@ from . import models, schemas
 from .database import get_db_session
 from .auth import get_current_user
 
+# NOTE: The prefix remains the same.
 router = APIRouter(
     prefix="/api/rides",
     tags=["Rides"],
@@ -51,8 +52,29 @@ async def create_vehicle(
 
     return new_vehicle
 
-# --- Endpoint to create a new Ride ---
-@router.post("/", response_model=schemas.RideOut, status_code=status.HTTP_201_CREATED)
+# --- Endpoint to Get ALL Vehicles for the Current Driver (NEW) ---
+@router.get("/vehicles/my-vehicles", response_model=List[schemas.VehicleOut])
+async def get_my_vehicles(
+    db: AsyncSession = Depends(get_db_session),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role.lower() != 'driver':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied."
+        )
+
+    query = select(models.Vehicle).where(models.Vehicle.user_id == current_user.user_id)
+    result = await db.execute(query)
+    vehicles = result.scalars().all()
+    
+    return vehicles
+
+
+# --- Endpoint to create a new Ride (FINAL FIX: Routing) ---
+# NOTE: We define the endpoint at the prefix root using the empty string "".
+# This is the correct way to map to /api/rides.
+@router.post("", response_model=schemas.RideOut, status_code=status.HTTP_201_CREATED) 
 async def create_ride(
     ride_in: schemas.RideCreate,
     db: AsyncSession = Depends(get_db_session),
@@ -90,12 +112,11 @@ async def create_ride(
     new_ride = models.Ride(
         **ride_in.dict(),
         driver_id=current_user.user_id
-        # seats_available is set directly from ride_in
     )
 
     db.add(new_ride)
     await db.commit()
-    await db.refresh(new_ride) # Get the ride_id
+    await db.refresh(new_ride) 
 
     # Query back the ride to load relationships for the response model
     query = select(models.Ride).where(models.Ride.ride_id == new_ride.ride_id).options(
@@ -105,7 +126,7 @@ async def create_ride(
     result = await db.execute(query)
     final_ride = result.scalars().first()
 
-    if not final_ride: # Should not happen, but good practice
+    if not final_ride: 
         raise HTTPException(status_code=500, detail="Could not retrieve ride after creation.")
 
     return final_ride
@@ -114,24 +135,21 @@ async def create_ride(
 # --- Endpoint to Search for Rides ---
 @router.get("/", response_model=List[schemas.RideOut])
 async def search_rides(
-    # These parameters come from the frontend query string
     origin: str,
     destination: str,
     ride_date: date,
-    min_seats: Optional[int] = Query(default=1, ge=1), # Use Query for validation, default 1
+    min_seats: Optional[int] = Query(default=1, ge=1),
     db: AsyncSession = Depends(get_db_session)
 ):
-    # Build the query
     query = select(models.Ride).where(
         models.Ride.origin.ilike(f"%{origin}%"),
         models.Ride.destination.ilike(f"%{destination}%"),
         func.date(models.Ride.date_time) == ride_date,
-        models.Ride.seats_available >= min_seats # Filter by minimum seats
+        models.Ride.seats_available >= min_seats
     ).options(
-        # Eagerly load related data for efficiency
         selectinload(models.Ride.driver),
         selectinload(models.Ride.vehicle)
-    ).order_by(models.Ride.date_time) # Order by departure time
+    ).order_by(models.Ride.date_time)
 
     result = await db.execute(query)
     rides = result.scalars().all()
@@ -143,12 +161,10 @@ async def search_rides(
 async def get_ride_details(
     ride_id: int,
     db: AsyncSession = Depends(get_db_session),
-    # current_user: models.User = Depends(get_current_user) # Needed because router has dependency
 ):
     query = select(models.Ride).where(
         models.Ride.ride_id == ride_id
     ).options(
-        # Eagerly load the driver and vehicle data
         selectinload(models.Ride.driver),
         selectinload(models.Ride.vehicle)
     )
